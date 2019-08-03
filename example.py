@@ -1,3 +1,4 @@
+import os
 import tensorflow as tf
 
 from utils.sparse_molecular_dataset import SparseMolecularDataset
@@ -9,18 +10,26 @@ from models import encoder_rgcn, decoder_adj, decoder_dot, decoder_rnn
 
 from optimizers.gan import GraphGANOptimizer
 
-batch_dim = 128
-la = 1
-dropout = 0
-n_critic = 5
-metric = 'validity,sas'
-n_samples = 5000
-z_dim = 8
-epochs = 10
-save_every = None
+import yaml
+
+
+with open("parameter.yml", "r") as fp:
+    param = yaml.load(fp)
+
+batch_dim = int(param["batch_dim"])
+la = int(param["la"])
+dropout = float(param["dropout"])
+n_critic = int(param["n_critic"])
+metric = param["metric"]
+n_samples = int(param["n_sample"])
+z_dim = int(param["z_dim"])
+epochs = int(param["epochs"])
+save_every = None if param["save_every"] == "None" else int(param["save_every"])
+out = param["out"]
+os.makedirs(out, exist_ok=True)
 
 data = SparseMolecularDataset()
-data.load('data/gdb9_9nodes.sparsedataset')
+data.load(param["dataset"])
 
 steps = (len(data) // batch_dim)
 
@@ -209,6 +218,6 @@ trainer.train(batch_dim=batch_dim,
               test_fetch_dict=test_fetch_dict,
               test_feed_dict=test_feed_dict,
               save_every=save_every,
-              directory='', # here users need to first create and then specify a folder where to save the model
+              directory=out,
               _eval_update=_eval_update,
               _test_update=_test_update)

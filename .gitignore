@@ -1,3 +1,10 @@
+# user setting
+*.pkl.gz
+*.sdf*
+*.sparsedataset
+*.png
+results/
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]

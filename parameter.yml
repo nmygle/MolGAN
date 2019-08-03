@@ -1,0 +1,12 @@
+batch_dim: 128
+la: 1
+dropout: 0
+n_critic: 5
+metric: 'validity,sas'
+n_sample: 5000
+z_dim: 8
+epochs: 10
+save_every: 2
+dataset: 'data/gdb9_9nodes.sparsedataset'
+out: "results"
+
