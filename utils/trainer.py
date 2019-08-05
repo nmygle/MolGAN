@@ -159,8 +159,8 @@ class Trainer:
                 if save_every is not None and epoch % save_every == 0:
                     self.save(directory)
 
-                with open("./logs", "w") as fp:
-                    json.dump(history, fp, indent=4)
+                with open("./logs", "wb") as fp:
+                    pickle.dump(history, fp)
 
             if epoch < epochs:
                 last_epoch_start_time = time.time()
