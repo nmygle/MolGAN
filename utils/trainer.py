@@ -160,7 +160,7 @@ class Trainer:
                     self.save(directory)
 
                 with open("./logs", "w") as fp:
-                    jump.dump(history, fp, indent=4)
+                    json.dump(history, fp, indent=4)
 
             if epoch < epochs:
                 last_epoch_start_time = time.time()
