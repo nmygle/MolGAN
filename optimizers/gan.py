@@ -1,4 +1,5 @@
 import tensorflow as tf
+import horovod.tensorflow as hvd
 
 
 class GraphGANOptimizer(object):
@@ -34,16 +35,27 @@ class GraphGANOptimizer(object):
         alpha = tf.abs(tf.stop_gradient(self.loss_G / self.loss_RL))
         self.grad_penalty = tf.reduce_mean(self.grad_penalty)
 
+        global_step = tf.train.get_or_create_global_step()
         with tf.name_scope('train_step'):
-            self.train_step_D = tf.train.AdamOptimizer(learning_rate=learning_rate).minimize(
+            opt_D = tf.train.AdamOptimizer(learning_rate=learning_rate)
+            opt_D = hvd.DistributedOptimizer(opt_D)
+            self.train_step_D = opt_D.minimize(
                 loss=self.loss_D + 10 * self.grad_penalty,
-                var_list=tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope='discriminator'))
+                var_list=tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope='discriminator'),
+                global_step=global_step)
 
-            self.train_step_G = tf.train.AdamOptimizer(learning_rate=learning_rate).minimize(
+            opt_G = tf.train.AdamOptimizer(learning_rate=learning_rate)
+            opt_G = hvd.DistributedOptimizer(opt_G)
+            self.train_step_G = opt_G.minimize(
                 loss=tf.cond(tf.greater(self.la, 0), lambda: self.la * self.loss_G, lambda: 0.) + tf.cond(
                     tf.less(self.la, 1), lambda: (1 - self.la) * alpha * self.loss_RL, lambda: 0.),
-                var_list=tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope='generator'))
+                var_list=tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope='generator'),
+                global_step=global_step)
 
-            self.train_step_V = tf.train.AdamOptimizer(learning_rate=learning_rate).minimize(
+            opt_V = tf.train.AdamOptimizer(learning_rate=learning_rate)
+            opt_V = hvd.DistributedOptimizer(opt_V)
+            self.train_step_V = opt_V.minimize(
                 loss=self.loss_V,
-                var_list=tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope='value'))
+                var_list=tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope='value'),
+                global_step=global_step)
+
