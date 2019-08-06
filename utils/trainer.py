@@ -13,8 +13,9 @@ import pprint
 
 class Trainer:
 
-    def __init__(self, model, optimizer, session):
+    def __init__(self, model, optimizer, session, out=None):
         self.model, self.optimizer, self.session, self.print = model, optimizer, session, defaultdict(list)
+        self.out = out
 
     @staticmethod
     def log(msg='', date=True):
@@ -143,6 +144,7 @@ class Trainer:
 
                 result = _eval_step(epoch, epochs, min_epochs, self.model, self.optimizer, batch_dim, eval_batch,
                                     start_time, last_epoch_start_time, _eval_update)
+                result["epoch"] = epoch
                 history.append(result)
 
                 if best_fn is not None and (True if best_model_value is None else best_fn(result) > best_model_value):
@@ -159,8 +161,9 @@ class Trainer:
                 if save_every is not None and epoch % save_every == 0:
                     self.save(directory)
 
-                with open("./logs", "wb") as fp:
-                    pickle.dump(history, fp)
+                with open(f"./{self.out}/logs.json", "w") as fp:
+                    history = [{key:str(data[key]) for key in data} for data in history]
+                    json.dump(history, fp)
 
             if epoch < epochs:
                 last_epoch_start_time = time.time()

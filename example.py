@@ -12,6 +12,13 @@ from optimizers.gan import GraphGANOptimizer
 
 import yaml
 
+import horovod.tensorflow as hvd
+
+hvd.init()
+config = tf.ConfigProto()
+config.gpu_options.visible_device_list = str(hvd.local_rank())
+
+print("local_rank:", str(hvd.local_rank()), ", rank:", str(hvd.rank()))
 
 with open("parameter.yml", "r") as fp:
     param = yaml.load(fp)
@@ -20,19 +27,23 @@ batch_dim = int(param["batch_dim"])
 la = int(param["la"])
 dropout = float(param["dropout"])
 n_critic = int(param["n_critic"])
-metric = param["metric"]
 n_samples = int(param["n_sample"])
 z_dim = int(param["z_dim"])
 epochs = int(param["epochs"])
 save_every = None if param["save_every"] == "None" else int(param["save_every"])
-out = param["out"]
+
+# rankごとにmetricとoutを作成
+if hvd.rank() % 2 ==  0:
+    metric = 'validity,sas'
+elif hvd.rank() % 2 == 1:
+    metric = 'validity,qed'
+out = f'{param["out"]}_{hvd.rank()}'
 os.makedirs(out, exist_ok=True)
 
 data = SparseMolecularDataset()
 data.load(param["dataset"])
 
 steps = (len(data) // batch_dim)
-
 
 def train_fetch_dict(i, steps, epoch, epochs, min_epochs, model, optimizer):
     a = [optimizer.train_step_G] if i % n_critic == 0 else [optimizer.train_step_D]
@@ -200,11 +211,17 @@ model = GraphGANModel(data.vertexes,
 optimizer = GraphGANOptimizer(model, learning_rate=1e-3, feature_matching=False)
 
 # session
-session = tf.Session()
+# session = tf.Session()
+# hooks = [hvd.BroadcastGlobalVariablesHook(0)]
+# checkpoint_dir = 'tmp/train_logs' if hvd.rank() == 0 else None
+#with tf.train.MonitoredTrainingSession(checkpoint_dir=checkpoint_dir, config=config, hooks=hooks) as mon_sess:
+#    while not mon_sess.should_stop():
+        # trainer
+session = tf.Session(config=config)
 session.run(tf.global_variables_initializer())
 
-# trainer
-trainer = Trainer(model, optimizer, session)
+#assert False
+trainer = Trainer(model, optimizer, session, out)
 
 print('Parameters: {}'.format(np.sum([np.prod(e.shape) for e in session.run(tf.trainable_variables())])))
 
@@ -221,3 +238,4 @@ trainer.train(batch_dim=batch_dim,
               directory=out,
               _eval_update=_eval_update,
               _test_update=_test_update)
+
