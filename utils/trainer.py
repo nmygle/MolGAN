@@ -11,10 +11,18 @@ from collections import defaultdict
 import pprint
 
 
+def get_session(sess):
+    session = sess
+    while type(session).__name__ != 'Session':
+        session = session._sess
+    return session
+
+
 class Trainer:
 
-    def __init__(self, model, optimizer, session, out=None):
+    def __init__(self, model, optimizer, session, saver, out=None):
         self.model, self.optimizer, self.session, self.print = model, optimizer, session, defaultdict(list)
+        self.saver = saver
         self.out = out
 
     @staticmethod
@@ -22,8 +30,7 @@ class Trainer:
         print(str(datetime.now().strftime('%Y-%m-%d %H:%M:%S')) + ' ' + str(msg) if date else str(msg))
 
     def save(self, directory):
-        saver = tf.train.Saver()
-
+        #saver = tf.train.Saver()
         dirs = directory.split('/')
         dirs = ['/'.join(dirs[:i]) for i in range(1, len(dirs) + 1)]
         mkdirs = [d for d in dirs if not os.path.exists(d)]
@@ -31,13 +38,13 @@ class Trainer:
         for d in mkdirs:
             os.makedirs(d)
 
-        saver.save(self.session, '{}/{}.ckpt'.format(directory, 'model'))
+        self.saver.save(get_session(self.session), '{}/{}.ckpt'.format(directory, 'model'))
         pickle.dump(self.print, open('{}/{}.pkl'.format(directory, 'trainer'), 'wb'))
         self.log('Model saved in {}!'.format(directory))
 
     def load(self, directory):
-        saver = tf.train.Saver()
-        saver.restore(self.session, '{}/{}.ckpt'.format(directory, 'model'))
+        #saver = tf.train.Saver()
+        self.saver.restore(self.session, '{}/{}.ckpt'.format(directory, 'model'))
         self.print = pickle.load(open('{}/{}.pkl'.format(directory, 'trainer'), 'rb'))
         self.log('Model loaded from {}!'.format(directory))
 
@@ -176,3 +183,4 @@ class Trainer:
                 self.log(date=False)
 
         _test_step(self.model, self.optimizer, batch_dim, eval_batch, start_time, _test_update)
+
